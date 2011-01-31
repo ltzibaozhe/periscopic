@@ -20,7 +20,7 @@
  *
  *
  * @author brett johnson
- * @see http://now.periscopic.com/2011/01/commandLineProcess/
+ * @see http://now.periscopic.com/2011/01/adobe-air-and-the-command-line/
  */
 
 package com.periscopic.air
