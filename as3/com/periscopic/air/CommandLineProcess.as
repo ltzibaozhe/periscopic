@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010 Periscopic, Inc | http://periscopic.com
+ * Copyright (c) 2011 Periscopic, Inc | http://periscopic.com
  *
  * Relased under Eclipse Public License:
  * http://opensource.org/licenses/eclipse-1.0.php
@@ -8,23 +8,24 @@
  *
  * Run system commands via a cpp based executable and Air 2 NativeProcess.
  * Cpp executable is compiled from cpp/com/periscopic/air/CommandLineProxy.cpp
- * Executable is included in system specific executable (EXE/DMG) in 
+ * Executable is included in system specific executable (EXE/DMG) in
  * the NativeProcesses folder.
  *
- * @author brett johnson
- * @see http://now.periscopic.com/2010/09/twine/
- */
-
-/**
- * Example:
+ * ----------------------------------------------------
+ * Usage:
+ *
  * var process:CommandLineProcess = new CommandLineProcess();
  * process.addEventListener(NativeProcessExitEvent.EXIT,handleExit,false,0,true);
- * process.run("ditto fileA.txt fileB.txt"); //use unix ditto command to copy fileA.txt 
- **/
+ * process.run("ditto fileA.txt fileB.txt"); //use unix ditto command to copy fileA.txt
+ *
+ *
+ * @author brett johnson
+ * @see http://now.periscopic.com/2011/01/commandLineProcess/
+ */
 
 package com.periscopic.air
 {
-	import com.periscopic.utils.Strings;
+	import com.periscopic.utils.Retainer;
 	import flash.desktop.NativeProcess;
 	import flash.desktop.NativeProcessStartupInfo;
 	import flash.events.Event;
@@ -35,9 +36,12 @@ package com.periscopic.air
 	import flash.events.ProgressEvent;
 	import flash.filesystem.File;
 
+	//--Debugging class based on the class from BigSpaceShip, 
+	//--removed as a dependency, but highly recommended.
+	//import com.periscopic.utils.Out;	
 	public class CommandLineProcess extends EventDispatcher
 	{
-		static private var _processes:Array=[];
+		static private var _retainer:Retainer = new Retainer();
 
 		private var _tracing:Boolean;
 
@@ -47,6 +51,10 @@ package com.periscopic.air
 		public function CommandLineProcess() {
 			super();
 			_process=new NativeProcess();
+		}
+
+		public function get process():NativeProcess {
+			return _process;
 		}
 
 		/*
@@ -64,7 +72,7 @@ package com.periscopic.air
 			_running=true;
 
 			//block garbage collection
-			_processes[_processes.length]=this;
+			_retainer.retain(this);
 
 			var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
 			var processArgs:Vector.<String> = new Vector.<String>();
@@ -75,8 +83,7 @@ package com.periscopic.air
 			processArgs[0]=command;
 			nativeProcessStartupInfo.arguments=processArgs;
 
-			//run process and listen to feedbacck			
-
+			//run process and listen to feedback		
 			_process.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA, relay, false, 0, true);
 			_process.addEventListener(ProgressEvent.STANDARD_ERROR_DATA, relay, false, 0, true);
 			_process.addEventListener(NativeProcessExitEvent.EXIT, relay, false, 0, true);
@@ -93,6 +100,7 @@ package com.periscopic.air
 		public function tracing():void {
 			if (_tracing)
 				return;
+			_tracing=true;
 			_process.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA, onOutputData, false, 0, true);
 			_process.addEventListener(ProgressEvent.STANDARD_ERROR_DATA, onErrorData, false, 0, true);
 			_process.addEventListener(NativeProcessExitEvent.EXIT, onExit, false, 0, true);
@@ -100,32 +108,36 @@ package com.periscopic.air
 			_process.addEventListener(IOErrorEvent.STANDARD_ERROR_IO_ERROR, onIOError, false, 0, true);
 		}
 
-		//allow garbage collection or reuse
 		private function handleExit(e:Event):void {
-			_processes.splice(_processes.indexOf(this), 1);
+			//allow garbage collection or reuse
+			_retainer.release(this);
 			_process=null;
 			_running=false;
 		}
 
 		private function onErrorData(event:ProgressEvent):void {
-			trace("ERROR -", _process.standardError.readUTFBytes(_process.standardError.bytesAvailable));
+			//Out.error(this, _process.standardError.readUTFBytes(_process.standardError.bytesAvailable));
+			trace(_process.standardError.readUTFBytes(_process.standardError.bytesAvailable));
 		}
 
 		private function onExit(event:NativeProcessExitEvent):void {
+			//Out.status(this, "Process exited with ", event.exitCode);
 			trace("Process exited with ", event.exitCode);
+
 		}
 
 		private function onIOError(event:IOErrorEvent):void {
+			//Out.error(this, event.toString());
 			trace(event.toString());
 		}
 
 		private function onOutputData(event:ProgressEvent):void {
-			trace("Got: ", _process.standardOutput.readUTFBytes(_process.standardOutput.bytesAvailable));
+			//Out.info(this, "Output", _process.standardOutput.readUTFBytes(_process.standardOutput.bytesAvailable));
+			trace("Output", _process.standardOutput.readUTFBytes(_process.standardOutput.bytesAvailable));
 		}
 
 		//pass events along
 		private function relay(e:Event):void {
-			//trace(e.toString());
 			this.dispatchEvent(e);
 		}
 	}
