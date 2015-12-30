@@ -1,0 +1,1 @@
+Internal code we have found useful in our User Experience and Information Visualization projects, made available to the world.
